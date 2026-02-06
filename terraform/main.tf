@@ -119,7 +119,7 @@ resource "aws_instance" "web" {
     Role = "web"
   }
 }
-}
+
 
 # ---------------- ALB ----------------
 resource "aws_lb" "alb" {
