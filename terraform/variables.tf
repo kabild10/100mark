@@ -19,9 +19,10 @@ variable "azs" {
 }
 
 variable "key_name" {
-  description = "Existing EC2 Key Pair name"
+  description = "webserver-key"
 }
 
 variable "my_ip" {
-  description = "Your public IP with /32"
+  description =  ["0.0.0.0/0"]
+
 }
