@@ -1,62 +1,53 @@
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+    tls = {
+      source = "hashicorp/tls"
+    }
+    local = {
+      source = "hashicorp/local"
+    }
+  }
+}
+
 provider "aws" {
   region = var.region
 }
 
-# --------------------
-# VPC
-# --------------------
+# ---------------- VPC ----------------
 resource "aws_vpc" "main" {
-  cidr_block           = var.vpc_cidr
+  cidr_block = var.vpc_cidr
   enable_dns_support   = true
   enable_dns_hostnames = true
-
-  tags = {
-    Name = "streamline-vpc"
-  }
+  tags = { Name = "streamline-vpc" }
 }
 
-# --------------------
-# Internet Gateway
-# --------------------
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main.id
 }
 
-# --------------------
-# Public Subnets
-# --------------------
+# ---------------- Subnets ----------------
 resource "aws_subnet" "public" {
   count                   = 2
   vpc_id                  = aws_vpc.main.id
   cidr_block              = var.public_subnets[count.index]
   availability_zone       = var.azs[count.index]
   map_public_ip_on_launch = true
-
-  tags = {
-    Name = "public-subnet-${count.index + 1}"
-  }
 }
 
-# --------------------
-# Private Subnets
-# --------------------
 resource "aws_subnet" "private" {
   count             = 2
   vpc_id            = aws_vpc.main.id
   cidr_block        = var.private_subnets[count.index]
   availability_zone = var.azs[count.index]
-
-  tags = {
-    Name = "private-subnet-${count.index + 1}"
-  }
 }
 
-# --------------------
-# Route Tables
-# --------------------
+# ---------------- Routing ----------------
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
-
   route {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.igw.id
@@ -69,41 +60,34 @@ resource "aws_route_table_association" "public_assoc" {
   route_table_id = aws_route_table.public.id
 }
 
-# --------------------
-# Security Groups
-# --------------------
+# ---------------- Security Groups ----------------
 resource "aws_security_group" "web_sg" {
   vpc_id = aws_vpc.main.id
 
   ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
+    from_port = 80
+    to_port   = 80
+    protocol  = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
+    from_port = 22
+    to_port   = 22
+    protocol  = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
+    from_port = 0
+    to_port   = 0
+    protocol  = "-1"
     cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "web-sg"
   }
 }
 
 resource "aws_security_group" "db_sg" {
   vpc_id = aws_vpc.main.id
-
   ingress {
     from_port       = 3306
     to_port         = 3306
@@ -112,35 +96,28 @@ resource "aws_security_group" "db_sg" {
   }
 }
 
-# --------------------
-# EC2 Instances
-# --------------------
+# ---------------- AMI ----------------
 data "aws_ami" "ubuntu" {
   most_recent = true
-  owners      = ["099720109477"]
-
+  owners = ["099720109477"]
   filter {
     name   = "name"
     values = ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"]
   }
 }
 
+# ---------------- EC2 ----------------
 resource "aws_instance" "web" {
-  count                  = 2
-  ami                    = data.aws_ami.ubuntu.id
-  instance_type          = "t2.micro"
-  subnet_id              = aws_subnet.public[count.index].id
+  count         = 2
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t2.micro"
+  subnet_id     = aws_subnet.public[count.index].id
   vpc_security_group_ids = [aws_security_group.web_sg.id]
-  key_name               = var.key_name
-
-  tags = {
-    Name = "web-${count.index + 1}"
-  }
+  key_name      = aws_key_pair.web_key.key_name
+  tags = { Name = "web-${count.index + 1}" }
 }
 
-# --------------------
-# Load Balancer
-# --------------------
+# ---------------- ALB ----------------
 resource "aws_lb" "alb" {
   name               = "streamline-alb"
   load_balancer_type = "application"
@@ -164,33 +141,30 @@ resource "aws_lb_target_group_attachment" "attach" {
 
 resource "aws_lb_listener" "listener" {
   load_balancer_arn = aws_lb.alb.arn
-  port              = 80
-  protocol          = "HTTP"
+  port = 80
+  protocol = "HTTP"
 
   default_action {
-    type             = "forward"
+    type = "forward"
     target_group_arn = aws_lb_target_group.tg.arn
   }
 }
 
-# --------------------
-# RDS
-# --------------------
+# ---------------- RDS ----------------
 resource "aws_db_subnet_group" "db_subnet" {
-  name       = "db-subnet-group"
   subnet_ids = aws_subnet.private[*].id
 }
 
 resource "aws_db_instance" "mysql" {
-  allocated_storage    = 20
-  engine               = "mysql"
-  engine_version       = "8.0"
-  instance_class       = "db.t3.micro"
-  db_name              = "streamline"
-  username             = "admin"
-  password             = "Admin12345!"
-  skip_final_snapshot  = true
-  publicly_accessible  = false
+  allocated_storage = 20
+  engine = "mysql"
+  engine_version = "8.0"
+  instance_class = "db.t3.micro"
+  db_name = "streamline"
+  username = "admin"
+  password = "Admin12345!"
+  skip_final_snapshot = true
+  publicly_accessible = false
   vpc_security_group_ids = [aws_security_group.db_sg.id]
   db_subnet_group_name = aws_db_subnet_group.db_subnet.name
 }
