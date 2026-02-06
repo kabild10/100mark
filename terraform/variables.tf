@@ -22,7 +22,4 @@ variable "key_name" {
   description = "webserver-key"
 }
 
-variable "my_ip" {
-  description =  ["0.0.0.0/0"]
 
-}
