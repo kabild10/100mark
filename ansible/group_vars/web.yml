@@ -1,5 +1,1 @@
-app_repo: https://github.com/YOUR-USERNAME/aws-capstone-exam.git
-app_branch: main
-web_root: /var/www/html
-db_user: admin
-db_password: Admin12345!
+app_root: /var/www/html
