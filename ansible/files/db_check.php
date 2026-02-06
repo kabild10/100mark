@@ -1,9 +1,13 @@
 <?php
 $host = getenv('DB_HOST');
-$conn = new mysqli($host, "admin", "Admin12345!");
+$user = getenv('DB_USER');
+$pass = getenv('DB_PASS');
+$db   = getenv('DB_NAME');
+
+$conn = new mysqli($host, $user, $pass, $db);
 
 if ($conn->connect_error) {
-    die("Database Connection Failed");
+    die("DB Connection Failed");
 }
 
 echo "Database Connected Successfully";
