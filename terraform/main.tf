@@ -114,7 +114,11 @@ resource "aws_instance" "web" {
   subnet_id     = aws_subnet.public[count.index].id
   vpc_security_group_ids = [aws_security_group.web_sg.id]
   key_name      = aws_key_pair.web_key.key_name
-  tags = { Name = "web-${count.index + 1}" }
+ tags = {
+    Name = "web-${count.index + 1}"
+    Role = "web"
+  }
+}
 }
 
 # ---------------- ALB ----------------
